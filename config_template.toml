@@ -1,0 +1,8 @@
+BotToken = "833360669:AAH2VGrrOH4wW6ppqJfpqSOj2YFTEWMuK44"
+ChatWhiteList = [ -383016214 ]
+
+[jira]
+JiraLogin = "user"
+JiraPass = "passsword"
+JiraUrl = "jira.kolesa-team.org"
+JiraApiKeySearchUrl = "https://jira.kolesa-team.org/rest/api/2/issue/"
