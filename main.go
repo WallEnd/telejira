@@ -6,8 +6,8 @@ import (
 	"github.com/sirupsen/logrus"
 	tb "gopkg.in/tucnak/telebot.v2"
 	"jirabot/jiraapi"
+	mw "jirabot/middleware"
 	"log"
-	"reflect"
 	"regexp"
 	"time"
 )
@@ -27,30 +27,10 @@ func Init(configPath string) {
 	jiraapi.Init(config.Jira)
 }
 
-func in_array(val interface{}, array interface{}) (exists bool, index int) {
-	exists = false
-	index = -1
-
-	switch reflect.TypeOf(array).Kind() {
-	case reflect.Slice:
-		s := reflect.ValueOf(array)
-
-		for i := 0; i < s.Len(); i++ {
-			if reflect.DeepEqual(val, s.Index(i).Interface()) == true {
-				index = i
-				exists = true
-				return
-			}
-		}
-	}
-
-	return
-}
-
 func validateChat(message *tb.Message) bool {
 	var chatid int64
 	chatid = message.Chat.ID
-	valid, _ := in_array(chatid, config.ChatWhiteList)
+	valid, _ := mw.InArray(chatid, config.ChatWhiteList)
 
 	logrus.Infof("%v", valid, message.Chat.ID, config.ChatWhiteList)
 	return valid
