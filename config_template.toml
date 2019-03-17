@@ -4,5 +4,5 @@ ChatWhiteList = [ -383016214 ]
 [jira]
 JiraLogin = "user"
 JiraPass = "passsword"
-JiraUrl = "jira.kolesa-team.org"
-JiraApiKeySearchUrl = "https://jira.kolesa-team.org/rest/api/2/issue/"
+JiraUrl = "jira.team.icu"
+JiraApiKeySearchUrl = "https://jjira.team.icu/rest/api/2/issue/"
