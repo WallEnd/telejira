@@ -3,21 +3,22 @@ package main
 import (
 	"fmt"
 	"github.com/BurntSushi/toml"
+	"github.com/codegangsta/cli"
+	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/sirupsen/logrus"
-	tb "gopkg.in/tucnak/telebot.v2"
+	bp "jirabot/bot"
+	conf "jirabot/config"
+	"jirabot/handler"
 	"jirabot/jiraapi"
-	mw "jirabot/middleware"
-	"log"
-	"regexp"
-	"time"
+	"ms-acr/acr/consts"
+	"net/http"
+	"os"
 )
 
+const version = 1
+
 // конфиг микросервиса
-var config struct {
-	BotToken      string
-	Jira          jiraapi.Config
-	ChatWhiteList []int64
-}
+var config conf.Config
 
 // инициализация конфига
 func Init(configPath string) {
@@ -27,49 +28,95 @@ func Init(configPath string) {
 	jiraapi.Init(config.Jira)
 }
 
-func validateChat(message *tb.Message) bool {
-	var chatid int64
-	chatid = message.Chat.ID
-	valid, _ := mw.InArray(chatid, config.ChatWhiteList)
+func main() {
+	a := cli.NewApp()
 
-	logrus.Infof("%v", valid, message.Chat.ID, config.ChatWhiteList)
-	return valid
+	a.Name = "jirabot"
+	a.Usage = "Telegram bot for Jira Atlassian Stack"
+	a.Version = consts.APP_VERSION
+	a.Author = "Nikolay Kindyakov"
+	a.Email = "kindyakov.nikolay@kolesa.kz"
+	a.Action = actionRun
+	a.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "debug, b",
+			Usage: "If provided, the service will be launched in debug mode",
+		},
+		cli.StringFlag{
+			Name:  "config, c",
+			Value: "/etc/telejira/config.cfg",
+			Usage: "Path to the configuration file",
+		},
+	}
+	a.Run(os.Args)
 }
 
-func main() {
+func actionRun(c *cli.Context) {
+	var updates tgbotapi.UpdatesChannel
 
-	Init("config.toml")
+	file := c.String("config")
+	isDebug := c.Bool("debug")
 
-	var issueName = regexp.MustCompile(`[A-Z]{2,5}-\d*`)
+	Init(file)
 
-	b, err := tb.NewBot(tb.Settings{
-		Token:  config.BotToken,
-		URL:    "",
-		Poller: &tb.LongPoller{Timeout: 10 * time.Second},
-	})
+	botApi, err := tgbotapi.NewBotAPI(config.Bot.Token)
 
 	if err != nil {
-		log.Fatal(err)
-		return
+		fmt.Println(err)
 	}
 
-	b.Handle(tb.OnText, func(m *tb.Message) {
-		if !validateChat(m) {
-			return
-		}
+	if isDebug {
+		botApi.Debug = true
+	} else {
+		botApi.Debug = false
+	}
 
-		var issue string
-		issue = issueName.FindString(m.Text)
+	if config.Bot.UseWebHook {
+		updates = fetchWebhookUpdates(botApi)
+	} else {
+		updates = fetchPollingUpdates(botApi)
+	}
 
-		if issue != "" {
-			text := jiraapi.GetIssueLink(issue)
-			_, err := b.Send(m.Chat, text, tb.ModeHTML)
+	runServer()
 
-			if err != nil {
-				fmt.Printf("%v", err)
-			}
-		}
-	})
+	bot := bp.BotApi{botApi, updates, tgbotapi.Update{}}
 
-	b.Start()
+	fmt.Println("Listening to bot api updates")
+
+	bot.ListenForUpdates(&config)
+}
+
+func fetchPollingUpdates(bot *tgbotapi.BotAPI) tgbotapi.UpdatesChannel {
+	res, _ := bot.RemoveWebhook()
+	fmt.Printf("%f", res)
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = config.Bot.PollingTimeout
+
+	updates, err := bot.GetUpdatesChan(u)
+
+	if err != nil {
+		fmt.Errorf("Problem in setting Polling", err.Error())
+	}
+
+	return updates
+}
+
+func fetchWebhookUpdates(bot *tgbotapi.BotAPI) tgbotapi.UpdatesChannel {
+	_, err := bot.SetWebhook(tgbotapi.NewWebhook(config.Bot.WebHook + "/bot" + bot.Token))
+
+	if err != nil {
+		fmt.Errorf("Problem in setting Webhook", err.Error())
+	}
+
+	updates := bot.ListenForWebhook("/bot" + bot.Token)
+
+	return updates
+}
+
+func runServer() {
+	http.HandleFunc("/", handler.MainHandler)
+	http.HandleFunc("/health", handler.HealthHandler)
+	go http.ListenAndServe(config.Bot.HttpPort, nil)
+
+	fmt.Println("Starting server at port " + config.Bot.HttpPort)
 }

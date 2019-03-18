@@ -1,8 +1,13 @@
-BotToken = "
-ChatWhiteList = [ -383016214 ]
+[bot]
+Token = ""
+WebHook = ""
+UseWebHook = false
+ChatWhiteList = [ -123321123 ]
+HttpPort = ":1212"
+PollingTimeout = 10
 
 [jira]
-JiraLogin = "user"
-JiraPass = "passsword"
-JiraUrl = "jira.kolesa-team.org"
-JiraApiKeySearchUrl = "https://jira.kolesa-team.org/rest/api/2/issue/"
+JiraLogin = ""
+JiraPass = ""
+JiraUrl = "jira.org"
+JiraApiKeySearchUrl = ""

@@ -16,13 +16,32 @@ type Config struct {
 }
 
 type Fields struct {
-	Summary     string `json:"summary"`
-	Description string `json:"description"`
+	Project     Project   `json:"project"`
+	Summary     string    `json:"summary"`
+	Description string    `json:"description"`
+	IssueType   IssueType `json:"issuetype"`
+	Status      Status    `json:"status"`
+}
+
+type Project struct {
+	Key string `json:"key"`
+}
+
+type Status struct {
+	Name string `json:"name"`
+}
+
+type IssueType struct {
+	Name string `json:"name"`
 }
 
 type JiraIssue struct {
 	Fields Fields `json:"fields"`
 	Key    string `json:"key"`
+}
+
+type NewIssue struct {
+	Fields Fields `json:"fields"`
 }
 
 var config Config
@@ -53,8 +72,8 @@ func GetIssueLink(key string) string {
 	}
 	_ = json.Unmarshal(b, &jiraissue)
 
-	return "<a href=\"" + config.JiraUrl + "/browse/" + jiraissue.Key + "\">" + jiraissue.Key + "</a> - <b>" + jiraissue.Fields.Summary + "</b>" +
-		"\n " + jiraissue.Fields.Description
+	return "*[" + jiraissue.Fields.IssueType.Name + "]* [" + jiraissue.Key + "](" + config.JiraUrl + "/browse/" + jiraissue.Key + ") - *" + jiraissue.Fields.Summary + "*" +
+		"\n *(status:" + jiraissue.Fields.Status.Name + ")* \n" + jiraissue.Fields.Description
 
 }
 
